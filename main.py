@@ -1,44 +1,49 @@
-from pyrogram import Client, filters
-from pyrogram.types import Message
-from config import API_ID, API_HASH, BOT_TOKEN
-
-from utils.state import user_state
-from utility.video_utils import download_m3u8_video
 import os
+from pyrogram import Client, filters
+from config import API_ID, API_HASH, BOT_TOKEN
+from utility.video_utils import download_m3u8_video
 
-app = Client("m3u8-only-bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
+# Inisialisasi bot
+app = Client("m3u8_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
-@app.on_message(filters.command("m3u8") & filters.private)
-async def m3u8_step_one(client, message: Message):
-    await message.reply_text(
-        "🎬 Silakan kirimkan link `.m3u8` Anda.\n\nContoh:\n`https://example.com/video/stream.m3u8`"
-    )
-    user_state[message.from_user.id] = "awaiting_m3u8_link"
+# Event ketika user mengirimkan pesan
+@app.on_message(filters.private & filters.text)
+async def handle_message(client, message):
+    url = message.text.strip()
 
-@app.on_message(filters.text & filters.private)
-async def fallback_handler(client, message: Message):
-    user_id = message.from_user.id
-    text = message.text.strip()
+    # Validasi dasar link
+    if not url.endswith(".m3u8"):
+        await message.reply("❗ Harap masukkan link .m3u8 yang valid.")
+        return
 
-    if user_state.get(user_id) == "awaiting_m3u8_link":
-        if not text.startswith("http") or ".m3u8" not in text:
-            await message.reply_text("❌ Link tidak valid. Pastikan itu adalah link `.m3u8`.")
-            return
+    # Siapkan jalur output dan pastikan folder ada
+    os.makedirs("downloads", exist_ok=True)
+    output_path = f"downloads/{message.from_user.id}.mp4"
 
-        await message.reply_text("⏳ Sedang mendownload video...")
-        output_file = f"{user_id}_m3u8.mp4"
-        status_msg = await message.reply_text("📥 Mulai mengunduh...")
+    # Kirim status awal
+    status_msg = await message.reply("⏳ Mengunduh dimulai...")
 
-        success = await download_m3u8_video(text, output_file, status_msg, client)
-        if not success or not os.path.exists(output_file):
-            await status_msg.edit("❌ Gagal mendownload video.")
-        else:
-            await status_msg.edit("✅ Berhasil! Mengirimkan ke Telegram...")
-            await client.send_video(chat_id=message.chat.id, video=output_file, caption="🎉 Selesai!")
-            os.remove(output_file)
+    # Jalankan unduhan
+    success = await download_m3u8_video(url, output_path, status_msg, client)
 
-        user_state.pop(user_id, None)
+    # Setelah selesai, kirim hasil atau error
+    if success:
+        try:
+            await client.send_document(
+                chat_id=message.chat.id,
+                document=output_path,
+                caption="✅ Unduhan selesai!"
+            )
+        except Exception as e:
+            await client.send_message(
+                chat_id=message.chat.id,
+                text=f"⚠️ Gagal mengirim file: {e}"
+            )
+    else:
+        await client.send_message(
+            chat_id=message.chat.id,
+            text="❌ Unduhan gagal. Pastikan link valid dan coba lagi."
+        )
 
-if __name__ == "__main__":
-    print("✅ Bot siap berjalan!")
-    app.run()
+# Jalankan bot
+app.run()
