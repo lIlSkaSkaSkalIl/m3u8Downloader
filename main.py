@@ -4,7 +4,8 @@ from config import API_ID, API_HASH, BOT_TOKEN
 
 from utils.state import user_state
 from utility.video_utils import download_m3u8_video
-import os
+from utility.status_format import format_status
+import os, time
 
 app = Client("m3u8-only-bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
@@ -33,11 +34,37 @@ async def fallback_handler(client, message: Message):
         if not success or not os.path.exists(output_file):
             await status_msg.edit("❌ Gagal mendownload video.")
         else:
-            await status_msg.edit("✅ Berhasil! Mengirimkan ke Telegram...")
-            await client.send_video(chat_id=message.chat.id, video=output_file, caption="🎉 Selesai!")
+            await status_msg.edit("✅ Berhasil! Mengunggah ke Telegram...")
+
+            # Setup upload progress tracking
+            upload_progress.start_time = time.time()
+            upload_progress.last_update = 0
+            upload_progress.filename = output_file
+            upload_progress.status_msg = status_msg
+
+            await client.send_video(
+                chat_id=message.chat.id,
+                video=output_file,
+                caption="✅ Video berhasil diunggah 🎬",
+                supports_streaming=True,
+                progress=upload_progress
+            )
             os.remove(output_file)
 
         user_state.pop(user_id, None)
+
+# Fungsi progress upload
+async def upload_progress(current, total):
+    now = time.time()
+    elapsed = now - upload_progress.start_time
+    if now - upload_progress.last_update > 5 or current == total:
+        try:
+            await upload_progress.status_msg.edit(
+                format_status("📤 Mengunggah", upload_progress.filename, current, total, elapsed)
+            )
+            upload_progress.last_update = now
+        except:
+            pass
 
 if __name__ == "__main__":
     print("✅ Bot siap berjalan!")
