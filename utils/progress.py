@@ -5,7 +5,7 @@ from utility.status_format import format_status
 def make_progress_callback(client, status_msg, label, output_path, start_time, flood_lock, last_update_ref):
     async def progress_callback(current, total):
         now = time.time()
-        if now - last_update_ref[0] < 30 or flood_lock[0]:
+        if now - last_update_ref[0] < 10 or flood_lock[0]:
             return
 
         last_update_ref[0] = now
