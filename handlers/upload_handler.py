@@ -28,9 +28,13 @@ async def upload_video(client, message, status_msg, output_path, filename, flood
             progress=progress_callback
         )
         await status_msg.delete()
+        print(f"✅ Video berhasil diunggah: {filename}")
 
         if thumb and os.path.exists(thumb):
-            os.remove(thumb)
+            try:
+                os.remove(thumb)
+            except Exception as e:
+                print(f"⚠️ Gagal menghapus thumbnail: {e}")
 
     except Exception as e:
         await status_msg.edit_text(f"❌ Gagal mengunggah: `{e}`")
