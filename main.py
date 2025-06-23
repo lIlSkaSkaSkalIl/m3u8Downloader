@@ -25,33 +25,33 @@ async def fallback_handler(client, message: Message):
             await message.reply_text("❌ Link tidak valid. Pastikan itu adalah link `.m3u8`.")
             return
 
-        await message.reply_text("⏳ Sedang mendownload video...")
+        await message.reply_chat_action("upload_video")
+        status_msg = await message.reply_text("⏳ Memulai download...")
         output_file = f"{user_id}_m3u8.mp4"
-        status_msg = await message.reply_text("📥 Mulai mengunduh...")
 
-        success = await download_m3u8_video(text, output_file, status_msg, client)
+        success = await download_m3u8_video(text, output_file, status_msg)
         if not success or not os.path.exists(output_file):
             await status_msg.edit("❌ Gagal mendownload video.")
         else:
-            await status_msg.edit("✅ Berhasil! Mengirimkan ke Telegram...")
+            metadata = extract_metadata(output_file)
+            duration = metadata.get("duration") if metadata else 0
+            width = metadata.get("width") if metadata else None
+            height = metadata.get("height") if metadata else None
 
-            # 🧠 Ambil metadata
-            duration, thumb = extract_metadata(output_file)
-
+            await status_msg.edit("✅ Berhasil! Mengirim ke Telegram...")
             await client.send_video(
                 chat_id=message.chat.id,
                 video=output_file,
-                caption="🎉 Selesai!",
                 duration=duration,
-                thumb=thumb if thumb else None,
-                supports_streaming=True
+                width=width,
+                height=height,
+                supports_streaming=True,
+                caption="🎉 Video berhasil dikirim!",
             )
-
-            if thumb and os.path.exists(thumb):
-                os.remove(thumb)
-
             os.remove(output_file)
 
+        # Hapus status & jejak
+        await status_msg.delete()
         user_state.pop(user_id, None)
 
 if __name__ == "__main__":
