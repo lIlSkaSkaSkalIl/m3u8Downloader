@@ -36,16 +36,16 @@ def format_status(phase: str, filename: str, done: int, total: int, elapsed: flo
     total_hr = human_readable_size(total)
 
     return (
+        f"━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        f"🔄 **{phase.upper()}**\n\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        f"📄 **Nama:** `{os.path.basename(filename)}`\n\n"
+        f"💾 **Ukuran:** `{human_readable_size(done)} / {total_hr}`\n\n"
+        f"🚀 **Kecepatan:** `{human_readable_size(speed)}/s`\n\n"
+        f"🧩 **Ekstensi:** `{ext}`\n\n"
+        f"⏱ **Waktu Berlalu:** `{int(elapsed)}s`\n\n"
+        f"⌛ **ETA:** `{eta_str(elapsed, done, total)}`\n\n"
+        f"📊 **Progres:**\n\n"
+        f"{progress_bar(done, total)}\n\n"
         f"━━━━━━━━━━━━━━━━━━━━━━\n"
-        f"🔄 **{phase.upper()}**\n"
-        f"━━━━━━━━━━━━━━━━━━━━━━\n"
-        f"📄 **Nama:** `{os.path.basename(filename)}`\n"
-        f"💾 **Ukuran:** `{human_readable_size(done)} / {total_hr}`\n"
-        f"🚀 **Kecepatan:** `{human_readable_size(speed)}/s`\n"
-        f"🧩 **Ekstensi:** `{ext}`\n"
-        f"⏱ **Waktu Berlalu:** `{int(elapsed)}s`\n"
-        f"⌛ **ETA:** `{eta_str(elapsed, done, total)}`\n"
-        f"📊 **Progres:**\n"
-        f"{progress_bar(done, total)}\n"
-        f"━━━━━━━━━━━━━━━━━━━━━━"
     )
