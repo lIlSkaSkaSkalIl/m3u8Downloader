@@ -2,63 +2,75 @@ import subprocess
 import asyncio
 import time
 import os
+import json
 from utility.status_format import format_status
 
-async def download_m3u8_video(url, output, status_msg, client=None):
+def extract_metadata(path):
     try:
-        start = time.time()
-        proc = await asyncio.create_subprocess_exec(
-            "streamlink", url, "best", "-o", output,
+        cmd = [
+            "ffprobe", "-v", "quiet", "-print_format", "json",
+            "-show_format", "-show_streams", path
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if result.returncode != 0:
+            return None
+
+        info = json.loads(result.stdout)
+        duration = float(info["format"].get("duration", 0))
+        streams = info.get("streams", [])
+        width = height = None
+        for stream in streams:
+            if stream.get("codec_type") == "video":
+                width = stream.get("width")
+                height = stream.get("height")
+                break
+        return {
+            "duration": int(duration),
+            "width": width,
+            "height": height
+        }
+    except Exception as e:
+        print("[Metadata Error]", e)
+        return None
+
+def build_progress_bar(percent: int, length: int = 25) -> str:
+    filled = int(length * percent / 100)
+    bar = "█" * filled + "░" * (length - filled)
+    return f"[{bar}]"
+
+async def download_m3u8_video(url, output_path, status_msg):
+    try:
+        cmd = [
+            "streamlink", url, "best",
+            "-o", output_path
+        ]
+        process = await asyncio.create_subprocess_exec(
+            *cmd,
             stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.STDOUT
+            stderr=asyncio.subprocess.PIPE
         )
 
-        done = 0
-        total = 0
+        start_time = time.time()
         last_update = 0
 
         while True:
-            line = await proc.stdout.readline()
+            line = await process.stderr.readline()
             if not line:
                 break
+            elapsed = time.time() - start_time
 
-            decoded = line.decode("utf-8").strip()
-
-            if "Download" in decoded and "%" in decoded:
+            # Estimasi dummy progres berdasarkan waktu (jika tidak ada parsing)
+            if time.time() - last_update > 5:
                 try:
-                    data = decoded.split("Download:")[-1].strip()
-                    parts = data.split("/")
-                    if len(parts) >= 2:
-                        done_str = parts[0].strip()
-                        total_str = parts[1].split("(")[0].strip()
-                        done = parse_size(done_str)
-                        total = parse_size(total_str)
+                    progress_text = format_status("📥 Mengunduh", output_path, 0, 0, elapsed)
+                    await status_msg.edit(progress_text + "\n" + build_progress_bar(50))
+                    last_update = time.time()
+                except:
+                    pass
 
-                        now = time.time()
-                        if now - last_update > 5 or done == total:
-                            await status_msg.edit(
-                                format_status("📥 Mengunduh", output, done, total, now - start)
-                            )
-                            last_update = now
-                except Exception as e:
-                    print("[Parse Error]", e)
-
-        await proc.wait()
-        return os.path.exists(output)
+        await process.wait()
+        return os.path.exists(output_path)
 
     except Exception as e:
         print(f"[ERROR] {e}")
         return False
-
-def parse_size(size_str):
-    size_str = size_str.upper().replace("MIB", "MB").replace("KIB", "KB")
-    num = ''.join(c for c in size_str if (c.isdigit() or c == '.' or c == ',')).replace(',', '.')
-    num = float(num)
-    if "KB" in size_str:
-        return int(num * 1024)
-    elif "MB" in size_str:
-        return int(num * 1024**2)
-    elif "GB" in size_str:
-        return int(num * 1024**3)
-    else:
-        return int(num)
