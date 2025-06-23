@@ -1,6 +1,6 @@
 import os
 import time
-from pyrogram import Client, filters, InputFile
+from pyrogram import Client, filters
 from config import API_ID, API_HASH, BOT_TOKEN
 from utility.video_utils import download_m3u8_video
 from utility.status_format import format_status
@@ -35,7 +35,7 @@ async def handle_message(client, message):
     async def progress_callback(current, total):
         elapsed = time.time() - upload_start_time
         status_text = format_status("📤 Mengunggah", output_path, current, total, elapsed)
-        status_text = status_text[:4000]  # Batas maksimal pesan Telegram
+        status_text = status_text[:4000]  # Telegram limit
         try:
             await client.edit_message_text(
                 chat_id=status_msg.chat.id,
@@ -48,7 +48,7 @@ async def handle_message(client, message):
     try:
         await client.send_document(
             chat_id=message.chat.id,
-            document=InputFile(output_path),
+            document=output_path,
             caption="✅ Unggahan selesai!",
             progress=progress_callback
         )
