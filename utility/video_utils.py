@@ -7,21 +7,23 @@ import os
 async def download_m3u8_video(url, output, status_msg):
     try:
         start = time.time()
-        temp_file = "temp_raw_m3u8.mp4"
+        temp_file = "temp_streamlink_output.mp4"
 
         cmd = [
-            "ffmpeg", "-i", url,
-            "-c", "copy",
-            "-bsf:a", "aac_adtstoasc",
-            "-y", temp_file
+            "streamlink", url, "best",
+            "-o", temp_file
         ]
-        process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
         while process.poll() is None:
+            line = process.stdout.readline().decode().strip()
             elapsed = time.time() - start
+
+            # Update status setiap 5 detik
             try:
                 await status_msg.edit(format_status("📥 Mengunduh", output, 0, 0, elapsed))
-            except: pass
+            except:
+                pass
             await asyncio.sleep(5)
 
         if process.returncode != 0 or not os.path.exists(temp_file):
@@ -35,8 +37,8 @@ async def download_m3u8_video(url, output, status_msg):
             "-y", output
         ]
         subprocess.run(remux_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-
         os.remove(temp_file)
+
         return os.path.exists(output)
 
     except Exception as e:
