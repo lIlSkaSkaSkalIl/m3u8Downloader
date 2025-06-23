@@ -29,7 +29,7 @@ async def fallback_handler(client, message: Message):
         output_file = f"{user_id}_m3u8.mp4"
         status_msg = await message.reply_text("📥 Mulai mengunduh...")
 
-        success = await download_m3u8_video(text, output_file, status_msg, client)
+        success = await download_m3u8_video(text, output_file, status_msg)
         if not success or not os.path.exists(output_file):
             await status_msg.edit("❌ Gagal mendownload video.")
         else:
