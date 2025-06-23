@@ -1,85 +1,48 @@
-import asyncio
 import subprocess
-import os
-import uuid
 import time
+import asyncio
+import os
+import streamlink
+import ffmpeg
 from utility.status_format import format_status
 
-# === Download M3U8 Video ===
-async def download_m3u8_video(url, output_path, status_msg):
+async def download_m3u8_video(url, output, status_msg):
     try:
-        tmp_path = f"{output_path}.tmp"
-        start = time.time()
-
-        # Jalankan streamlink dengan output ke file
-        cmd = [
-            "streamlink", url, "best",
-            "-o", tmp_path,
-            "--force"
-        ]
-
-        process = await asyncio.create_subprocess_exec(
-            *cmd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE
-        )
-
-        while True:
-            if process.stdout.at_eof():
-                break
-
-            await asyncio.sleep(5)
-            elapsed = time.time() - start
-            try:
-                await status_msg.edit(format_status("📥 Mengunduh", output_path, 0, 0, elapsed))
-            except: pass
-
-        await process.communicate()
-
-        if not os.path.exists(tmp_path):
+        streams = streamlink.streams(url)
+        if "best" not in streams:
             return False
+        stream = streams["best"]
 
-        # Remux agar metadata valid dan thumbnail muncul
-        remux_cmd = [
-            "ffmpeg", "-y", "-i", tmp_path,
-            "-c", "copy", "-movflags", "+faststart",
-            output_path
-        ]
-        subprocess.run(remux_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        with open(output, "wb") as f:
+            start = time.time()
+            downloaded = 0
+            for chunk in stream.open():
+                f.write(chunk)
+                downloaded += len(chunk)
 
-        os.remove(tmp_path)
-        return os.path.exists(output_path)
+                elapsed = time.time() - start
+                if elapsed > 1:
+                    await status_msg.edit(format_status("📥 Mengunduh", output, downloaded, 0, elapsed))
+                    await asyncio.sleep(5)
 
+        return os.path.exists(output)
     except Exception as e:
-        print(f"[ERROR download_m3u8_video] {e}")
+        print(f"[ERR] {e}")
         return False
 
-# === Ekstrak Metadata: durasi dan thumbnail ===
-def extract_metadata(file_path):
+def extract_metadata(path):
     try:
-        # Ambil durasi video
-        result = subprocess.run(
-            ["ffprobe", "-v", "error", "-show_entries",
-             "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", file_path],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT
+        probe = ffmpeg.probe(path)
+        video_stream = next((stream for stream in probe['streams'] if stream['codec_type'] == 'video'), None)
+        duration = int(float(video_stream['duration']))
+        thumbnail_path = f"{path}_thumb.jpg"
+
+        (
+            ffmpeg.input(path, ss=1)
+            .output(thumbnail_path, vframes=1)
+            .run(quiet=True, overwrite_output=True)
         )
-        duration = int(float(result.stdout.decode().strip()))
-
-        # Buat thumbnail
-        thumb_path = f"{uuid.uuid4().hex}_thumb.jpg"
-        subprocess.run(
-            ["ffmpeg", "-y", "-ss", "00:00:01", "-i", file_path,
-             "-vframes", "1", "-q:v", "2", thumb_path],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL
-        )
-
-        if os.path.exists(thumb_path):
-            return duration, thumb_path
-        else:
-            return duration, None
-
+        return duration, thumbnail_path if os.path.exists(thumbnail_path) else None
     except Exception as e:
-        print(f"[ERROR extract_metadata] {e}")
+        print(f"[META ERR] {e}")
         return 0, None
