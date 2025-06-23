@@ -1,46 +1,45 @@
-import aiohttp
-import m3u8
-import os
 import subprocess
-import asyncio
+import os
 
-async def download_m3u8(url: str, output_path: str, progress_callback=None):
-    async with aiohttp.ClientSession() as session:
-        async with session.get(url) as response:
-            playlist_text = await response.text()
+async def download_m3u8(url, output_path, progress_callback=None):
+    print(f"[FFMPEG] 🚀 Memulai proses download dari URL:\n{url}")
+    print(f"[FFMPEG] 💾 File output: {output_path}")
 
-    playlist = m3u8.loads(playlist_text)
+    try:
+        # Jalankan ffmpeg
+        process = subprocess.Popen(
+            [
+                "ffmpeg",
+                "-y",            # Overwrite tanpa konfirmasi
+                "-i", url,       # Input M3U8
+                "-c", "copy",    # Copy langsung tanpa re-encoding
+                output_path
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            universal_newlines=True
+        )
 
-    if not playlist.segments:
-        raise ValueError("Playlist tidak memiliki segment!")
+        # Cetak semua output dari ffmpeg untuk debug
+        for line in process.stdout:
+            print("[FFMPEG]", line.strip())
 
-    segment_urls = [
-        url if segment.uri.startswith("http") else os.path.join(os.path.dirname(url), segment.uri)
-        for segment in playlist.segments
-    ]
+        process.wait()
 
-    temp_file = output_path + ".txt"
-    with open(temp_file, "w") as f:
-        for segment_url in segment_urls:
-            f.write(f"file '{segment_url}'\n")
+        if process.returncode != 0:
+            raise Exception(f"ffmpeg gagal dengan kode keluar {process.returncode}")
 
-    total = len(segment_urls)
-    proc = await asyncio.create_subprocess_exec(
-        "ffmpeg", "-f", "concat", "-safe", "0",
-        "-i", temp_file,
-        "-c", "copy",
-        "-y", output_path,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.PIPE
-    )
+        # Cek apakah file benar-benar dibuat
+        if not os.path.exists(output_path):
+            raise FileNotFoundError(f"File tidak ditemukan: {output_path}")
 
-    while True:
-        line = await proc.stderr.readline()
-        if not line:
-            break
-        if progress_callback:
-            current = int(len(line))  # Dummy progress, bisa dikembangkan
-            await progress_callback(current, total)
+        # Cek ukuran file
+        size = os.path.getsize(output_path)
+        print(f"[FFMPEG] ✅ Unduhan selesai, ukuran file: {size} byte")
 
-    await proc.wait()
-    os.remove(temp_file)
+        if size < 1024:
+            raise Exception("Ukuran file terlalu kecil, kemungkinan file kosong atau gagal.")
+
+    except Exception as e:
+        print(f"[FFMPEG] ❌ Error: {e}")
+        raise
