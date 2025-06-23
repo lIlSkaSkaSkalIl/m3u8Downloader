@@ -27,7 +27,7 @@ def format_status(phase: str, filename: str, done: int, total: int, elapsed: flo
     total_hr = human_readable_size(total)
     return (
         f"**{phase}...**\n"
-        f"📄 Nama: `{filename}`\n"
+        f"📄 Nama: `{os.path.basename(filename)}`\n"
         f"💾 Ukuran: `{human_readable_size(done)} / {total_hr}`\n"
         f"🚀 Kecepatan: `{human_readable_size(speed)}/s`\n"
         f"🧩 Ekstensi: `{ext}`\n"
