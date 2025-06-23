@@ -90,3 +90,6 @@ async def handle_message(client: Client, message: Message):
         await status_msg.delete()
     except Exception as e:
         await status_msg.edit_text(f"❌ Gagal mengunggah: `{e}`")
+if __name__ == "__main__":
+    print("🚀 Bot dimulai...")
+    app.run()
