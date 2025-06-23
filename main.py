@@ -10,7 +10,6 @@ os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
 app = Client("m3u8_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
-# Register handlers
 app.add_handler(start_handler)
 app.add_handler(m3u8_handler)
 
