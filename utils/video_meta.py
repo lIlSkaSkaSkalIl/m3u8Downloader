@@ -1,3 +1,4 @@
+import os
 import subprocess
 
 def get_video_duration(path: str) -> int:
