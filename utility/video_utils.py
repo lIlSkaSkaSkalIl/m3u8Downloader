@@ -2,79 +2,84 @@ import subprocess
 import asyncio
 import time
 import os
-import requests
 from utility.status_format import format_status
 
-def estimate_m3u8_size(url: str, bitrate_kbps: int = 1000) -> int:
-    """
-    Estimasi ukuran file dari link m3u8 berdasarkan total durasi dan bitrate (kbps).
-    Default bitrate 1000 kbps = 125000 bytes/s.
-    """
+async def download_m3u8_video(url, output, status_msg, client=None):
     try:
-        r = requests.get(url, timeout=10)
-        if r.status_code != 200:
-            return 0
-
-        m3u8_content = r.text.splitlines()
-        total_duration = 0.0
-
-        for line in m3u8_content:
-            if line.startswith("#EXTINF:"):
-                try:
-                    duration = float(line.split(":")[1].rstrip(","))
-                    total_duration += duration
-                except:
-                    continue
-
-        bitrate_bytes = bitrate_kbps * 125  # 1000 kbps = 125000 bytes/s
-        estimated_size = int(total_duration * bitrate_bytes)
-        return estimated_size
-    except:
-        return 0
-
-async def download_m3u8_video(url, output, status_msg):
-    try:
-        start_time = time.time()
-        temp_file = "temp_streamlink_output.ts"
-        estimated_total = estimate_m3u8_size(url)
-
-        # Mulai proses streamlink
-        process = subprocess.Popen(
-            ["streamlink", "--default-stream", "best", "-o", temp_file, url],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE
+        start = time.time()
+        proc = await asyncio.create_subprocess_exec(
+            "streamlink", url, "best", "-o", output,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
         )
 
+        progress = 0
         last_update = 0
-        while process.poll() is None:
-            elapsed = time.time() - start_time
-            done = os.path.getsize(temp_file) if os.path.exists(temp_file) else 0
 
-            if elapsed - last_update > 5:
-                try:
-                    await status_msg.edit(
-                        format_status("📥 Mengunduh", output, done, estimated_total, elapsed)
-                    )
-                    last_update = elapsed
-                except:
-                    pass
-            await asyncio.sleep(1)
+        while True:
+            line = await proc.stderr.readline()
+            if not line:
+                break
+            decoded = line.decode("utf-8")
 
-        if not os.path.exists(temp_file):
-            return False
+            if "Download" in decoded and "%" in decoded:
+                # Contoh parsing: Download: 12.34 MiB / 120.56 MiB (10%), ...
+                parts = decoded.split("Download:")[-1].strip()
+                if "/" in parts:
+                    try:
+                        downloaded_str, total_str = parts.split("/")[:2]
+                        downloaded = parse_size(downloaded_str.strip())
+                        total = parse_size(total_str.strip().split(" ")[0])
+                        now = time.time()
+                        if now - last_update > 5:
+                            await status_msg.edit(
+                                format_status("📥 Mengunduh", output, downloaded, total, now - start)
+                            )
+                            last_update = now
+                    except:
+                        pass
 
-        # Remux agar metadata dan thumbnail valid
-        remux_cmd = [
-            "ffmpeg", "-i", temp_file,
-            "-c", "copy", "-map", "0",
-            "-movflags", "+faststart",
-            "-y", output
-        ]
-        subprocess.run(remux_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-
-        os.remove(temp_file)
+        await proc.wait()
         return os.path.exists(output)
 
     except Exception as e:
         print(f"[ERROR] {e}")
         return False
+
+def parse_size(size_str):
+    """Ubah string seperti '10.5 MiB' jadi bytes."""
+    size_str = size_str.upper().replace("MIB", "MB").replace("KIB", "KB")
+    num, unit = size_str.split()
+    num = float(num)
+    if unit == "KB":
+        return int(num * 1024)
+    elif unit == "MB":
+        return int(num * 1024 ** 2)
+    elif unit == "GB":
+        return int(num * 1024 ** 3)
+    else:
+        return int(num)
+
+def extract_metadata(path: str):
+    """Ambil thumbnail & durasi dari video."""
+    try:
+        thumb_path = "thumbnail.jpg"
+        subprocess.run([
+            "ffmpeg", "-i", path,
+            "-ss", "00:00:02.000", "-vframes", "1",
+            "-vf", "scale=320:-1",
+            "-y", thumb_path
+        ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+        result = subprocess.run(
+            ["ffprobe", "-i", path, "-show_entries", "format=duration",
+             "-v", "quiet", "-of", "csv=p=0"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            text=True
+        )
+        duration = int(float(result.stdout.strip()))
+        return duration, thumb_path
+    except Exception as e:
+        print(f"[Metadata ERROR] {e}")
+        return 0, None
