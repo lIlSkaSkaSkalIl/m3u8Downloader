@@ -1,36 +1,73 @@
-# Telegram M3U8 Downloader Bot (v1.00,0)
 
-Bot Telegram ini khusus dibuat untuk mengunduh video dari link `.m3u8` streaming dan mengirimkannya langsung ke obrolan Telegram Anda.
+# 📥 m3u8Downloader Bot v2
 
-## 🎯 Fitur
-- Perintah `/m3u8` untuk mengunduh video dari link m3u8
-- Progres status ter-update setiap 5 detik
-- Mendukung upload video langsung ke Telegram
-- Menggunakan `ffmpeg` untuk download cepat dengan metadata yang valid
+Bot Telegram berbasis Python untuk mengunduh video dari URL M3U8 dan mengunggah hasilnya ke Telegram dalam format MP4. Dirancang untuk berjalan di lingkungan Google Colab dengan dukungan progres download dan upload secara paralel.
 
-## 🚀 Cara Menjalankan
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/lIlSkaSkaSkalIl/m3u8Downloader/blob/main/M3U8_telegram_bot.ipynb)
 
-1. Edit `config.py`:
-```python
-API_ID = 123456
-API_HASH = "your_api_hash"
-BOT_TOKEN = "your_bot_token"
+---
+
+## 🚀 Fitur yang Tersedia (v2)
+- ✅ Unduh video dari file M3U8 dan konversi otomatis ke MP4.
+- ✅ Progres **download** berjalan paralel dan ditampilkan berkala.
+- ✅ Progres **upload** ke Telegram ditampilkan saat proses berlangsung.
+- ✅ Struktur modular dan scalable (terpisah per fungsi: utility, handler, dll).
+- ✅ Mendukung upload file berukuran besar ke Telegram.
+
+---
+
+## 🛠️ Fitur yang Akan Ditambahkan
+| Fitur                                        | Status |
+|---------------------------------------------|--------|
+| Upload video sebagai **streamable** Telegram | 🔜 Segera |
+| Resume download jika terputus               | 🔜 Segera |
+| Deteksi **master playlist** M3U8 dan pilih resolusi | 🔜 Segera |
+| Perintah `/status` untuk lihat progres      | 🔜 Segera |
+| Opsi konversi ukuran file (MB/GB) pada progres | 🔜 Segera |
+
+---
+
+## 🧑‍💻 Cara Menjalankan di Google Colab
+
+1. Klik tombol **Open in Colab** di atas.
+2. Jalankan setiap sel secara berurutan.
+3. Masukkan **Bot Token Telegram** dan jalankan bot.
+
+---
+
+## 💬 Perintah Bot
+
+| Perintah     | Deskripsi                                      |
+|--------------|------------------------------------------------|
+| `/start`     | Menyapa dan memberi info awal penggunaan bot. |
+| Kirim URL M3U8 | Bot akan mulai proses download dan upload.    |
+
+---
+
+## 🗂️ Struktur Direktori
+
+```
+m3u8Downloader/
+├── main.py                  # Entry point bot Telegram
+├── config.py                # Konfigurasi token dan path
+├── requirements.txt         # Daftar pustaka yang dibutuhkan
+├── M3U8_telegram_bot.ipynb  # Notebook untuk Colab
+├── utility/
+│   ├── video_utils.py       # Fungsi untuk unduh dan konversi M3U8
+│   └── status_format.py     # Format teks progres
+├── utils/
+│   └── state.py             # Menyimpan status progres
 ```
 
-2. Install dependensi:
-```bash
-pip install pyrogram tgcrypto
-sudo apt install ffmpeg
-```
+---
 
-3. Jalankan bot:
-```bash
-python3 main.py
-```
+## 📄 Lisensi
 
-## 📌 Catatan
-- Bot hanya merespons perintah `/m3u8` dan menunggu link video dari pengguna.
-- Metadata video akan ditata ulang agar Telegram menampilkan thumbnail dan durasi.
+Proyek ini dirilis dengan lisensi **MIT**. Bebas digunakan dan dimodifikasi dengan menyertakan atribusi.
 
-## 🧪 Versi
-**v1.00,0** — Versi stabil awal khusus untuk fitur `.m3u8` saja.
+---
+
+## 📬 Kontak
+
+Dikembangkan oleh [Ska Ska](https://github.com/lIlSkaSkaSkalIl). Untuk pertanyaan, saran, atau kontribusi, silakan buat issue di GitHub.
+
