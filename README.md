@@ -1,6 +1,4 @@
-# Telegram M3U8 Downloader Bot (v1.00,0)
-
-# 🎬 Telegram M3U8 Downloader Bot
+# 🎬 Telegram M3U8 Downloader Bot (v1.00,0)
 
 Bot Telegram untuk mengunduh video dari link `.m3u8` langsung ke Telegram Anda secara otomatis.
 
@@ -30,21 +28,3 @@ Klik tombol di bawah untuk langsung membuka dan menjalankan bot di Google Colab:
 4. Bot akan aktif dan menunggu perintah `/m3u8` di Telegram
 
 ---
-
-## 📦 Struktur Proyek
-
-m3u8Downloader/ ├── main/ │   ├── main.py │   ├── config.py        # dibuat otomatis oleh Colab │   ├── utility/ │   │   └── video_utils.py │   │   └── status_format.py │   └── utils/ │       └── state.py
-
----
-
-## 🧪 Contoh Penggunaan
-
-Kirim ke bot Anda di Telegram:
-
-/m3u8 https://example.com/video/stream.m3u8
-
----
-
-## 📄 Lisensi
-
-Proyek ini dirilis dengan lisensi MIT. Silakan gunakan dan modifikasi sesuai kebutuhan.
