@@ -15,7 +15,10 @@ def get_video_duration(path: str) -> int:
             stderr=subprocess.PIPE,
             text=True
         )
-        return int(float(result.stdout.strip()))
+        dur_str = result.stdout.strip()
+        if not dur_str:
+            raise ValueError("Durasi tidak ditemukan.")
+        return int(float(dur_str))
     except Exception as e:
         print(f"❌ Gagal mengambil durasi: {e}")
         return 0
@@ -31,7 +34,11 @@ def get_thumbnail(path: str, thumb_path: str) -> str:
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL
         )
-        return thumb_path if os.path.exists(thumb_path) else None
+        if os.path.exists(thumb_path):
+            return thumb_path
+        else:
+            print("⚠️ Thumbnail tidak ditemukan setelah ffmpeg dijalankan.")
+            return None
     except Exception as e:
         print(f"❌ Gagal mengambil thumbnail: {e}")
         return None
