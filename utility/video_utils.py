@@ -1,41 +1,44 @@
-import asyncio
 import subprocess
-import os
+import asyncio
 import time
 from utility.status_format import format_status
+import os
 
-async def download_m3u8_video(url: str, output_path: str, status_msg, client) -> bool:
-    start_time = time.time()
+async def download_m3u8_video(url, output, status_msg):
+    try:
+        start = time.time()
+        temp_file = "temp_raw_m3u8.mp4"
 
-    cmd = [
-        "ffmpeg", "-i", url,
-        "-c", "copy", "-bsf:a", "aac_adtstoasc",
-        "-movflags", "+faststart",
-        "-loglevel", "error",
-        output_path
-    ]
+        cmd = [
+            "ffmpeg", "-i", url,
+            "-c", "copy",
+            "-bsf:a", "aac_adtstoasc",
+            "-y", temp_file
+        ]
+        process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
-    process = await asyncio.create_subprocess_exec(
-        *cmd,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE
-    )
-
-    last_update = time.time()
-    while True:
-        if process.returncode is not None:
-            break
-        now = time.time()
-        if now - last_update >= 5:
-            elapsed = now - start_time
-            size = os.path.getsize(output_path) if os.path.exists(output_path) else 0
-            status_text = format_status("📥 Mengunduh", output_path, size, 0, elapsed)
+        while process.poll() is None:
+            elapsed = time.time() - start
             try:
-                await status_msg.edit(status_text)
-            except:
-                pass
-            last_update = now
-        await asyncio.sleep(1)
+                await status_msg.edit(format_status("📥 Mengunduh", output, 0, 0, elapsed))
+            except: pass
+            await asyncio.sleep(5)
 
-    await process.wait()
-    return os.path.exists(output_path)
+        if process.returncode != 0 or not os.path.exists(temp_file):
+            return False
+
+        # Remux agar metadata dan thumbnail valid
+        remux_cmd = [
+            "ffmpeg", "-i", temp_file,
+            "-c", "copy", "-map", "0",
+            "-movflags", "+faststart",
+            "-y", output
+        ]
+        subprocess.run(remux_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+        os.remove(temp_file)
+        return os.path.exists(output)
+
+    except Exception as e:
+        print(f"[ERROR] {e}")
+        return False
