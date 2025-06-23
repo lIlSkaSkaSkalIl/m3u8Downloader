@@ -16,7 +16,7 @@ Bot Telegram untuk mengunduh video dari link `.m3u8` langsung ke Telegram Anda s
 
 Klik tombol di bawah untuk langsung membuka dan menjalankan bot di Google Colab:
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/https://github.com/lIlSkaSkaSkalIl/m3u8Downloader/blob/017a270b170bb302b8e42fc933cc6fb256d5a9da/M3U8_telegram_bot.ipynb)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/lIlSkaSkaSkalIl/m3u8Downloader/blob/017a270b170bb302b8e42fc933cc6fb256d5a9da/M3U8_telegram_bot.ipynb)
 
 ---
 
