@@ -1,44 +1,101 @@
+import os
+import asyncio
 from pyrogram import Client, filters
 from pyrogram.types import Message
-from config import API_ID, API_HASH, BOT_TOKEN
+import subprocess
+import time
 
-from utils.state import user_state
-from utility.video_utils import download_m3u8_video
-import os
+# Konfigurasi API Telegram
+API_ID = int(os.getenv("API_ID") or input("Masukkan API_ID: "))
+API_HASH = os.getenv("API_HASH") or input("Masukkan API_HASH: ")
+BOT_TOKEN = os.getenv("BOT_TOKEN") or input("Masukkan BOT_TOKEN: ")
 
-app = Client("m3u8-only-bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
+app = Client("m3u8_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
-@app.on_message(filters.command("m3u8") & filters.private)
-async def m3u8_step_one(client, message: Message):
-    await message.reply_text(
-        "🎬 Silakan kirimkan link `.m3u8` Anda.\n\nContoh:\n`https://example.com/video/stream.m3u8`"
+# State memory user
+user_state = {}
+
+# Fungsi untuk status progres
+def format_status(phase: str, filename: str, done: int, total: int, elapsed: float) -> str:
+    speed = done / elapsed if elapsed > 0 else 0
+    return (
+        f"**{phase}...**\n"
+        f"📄 File: `{filename}`\n"
+        f"🚀 Kecepatan: `{speed / 1024:.2f} KB/s`\n"
+        f"⏱️ Waktu: `{int(elapsed)}s`"
     )
-    user_state[message.from_user.id] = "awaiting_m3u8_link"
 
+# Fungsi download m3u8 + remux
+async def download_m3u8_video(url, output, status_msg):
+    try:
+        start = time.time()
+        temp_file = "temp_raw.mp4"
+
+        # Unduh m3u8
+        cmd = [
+            "ffmpeg", "-i", url,
+            "-c", "copy", "-bsf:a", "aac_adtstoasc",
+            "-y", temp_file
+        ]
+        process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+        while process.poll() is None:
+            elapsed = time.time() - start
+            try:
+                await status_msg.edit(format_status("📥 Mengunduh", output, 0, 0, elapsed))
+            except:
+                pass
+            await asyncio.sleep(5)
+
+        if process.returncode != 0 or not os.path.exists(temp_file):
+            return False
+
+        # Remux ulang agar metadata & thumbnail terbaca Telegram
+        remux_cmd = [
+            "ffmpeg", "-i", temp_file,
+            "-c", "copy", "-map", "0", "-movflags", "+faststart",
+            "-y", output
+        ]
+        subprocess.run(remux_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        os.remove(temp_file)
+
+        return os.path.exists(output)
+
+    except Exception as e:
+        print(f"[ERROR] {e}")
+        return False
+
+# Command /m3u8
+@app.on_message(filters.command("m3u8") & filters.private)
+async def step_1(client, message: Message):
+    user_state[message.from_user.id] = "awaiting_m3u8"
+    await message.reply_text("🎬 Kirimkan link `.m3u8` Anda untuk didownload:")
+
+# Proses teks masuk
 @app.on_message(filters.text & filters.private)
-async def fallback_handler(client, message: Message):
-    user_id = message.from_user.id
-    text = message.text.strip()
+async def step_2(client, message: Message):
+    uid = message.from_user.id
+    if user_state.get(uid) != "awaiting_m3u8":
+        return
 
-    if user_state.get(user_id) == "awaiting_m3u8_link":
-        if not text.startswith("http") or ".m3u8" not in text:
-            await message.reply_text("❌ Link tidak valid. Pastikan itu adalah link `.m3u8`.")
-            return
+    user_state.pop(uid, None)  # Hapus state agar tidak dobel
+    link = message.text.strip()
 
-        await message.reply_text("⏳ Sedang mendownload video...")
-        output_file = f"{user_id}_m3u8.mp4"
-        status_msg = await message.reply_text("📥 Mulai mengunduh...")
+    if not link.startswith("http") or ".m3u8" not in link:
+        return await message.reply("❌ Link tidak valid, pastikan itu file `.m3u8`.")
 
-        success = await download_m3u8_video(text, output_file, status_msg, client)
-        if not success or not os.path.exists(output_file):
-            await status_msg.edit("❌ Gagal mendownload video.")
-        else:
-            await status_msg.edit("✅ Berhasil! Mengirimkan ke Telegram...")
-            await client.send_video(chat_id=message.chat.id, video=output_file, caption="🎉 Selesai!")
-            os.remove(output_file)
+    msg = await message.reply("📥 Mengunduh video...")
+    filename = f"{uid}_video.mp4"
 
-        user_state.pop(user_id, None)
+    success = await download_m3u8_video(link, filename, msg)
+
+    if not success or not os.path.exists(filename):
+        return await msg.edit("❌ Gagal mengunduh video.")
+
+    await msg.edit("✅ Selesai! Mengirim video ke Telegram...")
+    await client.send_video(message.chat.id, video=filename, caption="🎉 Selesai!", supports_streaming=True)
+    os.remove(filename)
 
 if __name__ == "__main__":
-    print("✅ Bot siap berjalan!")
+    print("✅ Bot m3u8-only siap dijalankan!")
     app.run()
