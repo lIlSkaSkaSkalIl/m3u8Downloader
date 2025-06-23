@@ -5,8 +5,8 @@ import asyncio
 
 async def download_m3u8(url, output_path, progress_callback=None):
     print(f"[FFMPEG] 🚀 Memulai proses download dari URL:\n{url}")
-    # print(f"[FFMPEG] 💾 File output: {output_path}")
 
+    process = None
     try:
         start_time = time.time()
 
@@ -23,9 +23,8 @@ async def download_m3u8(url, output_path, progress_callback=None):
             universal_newlines=True
         )
 
-        # Simulasi progres berdasarkan waktu
         total_time = 15  # estimasi waktu proses dalam detik
-        interval = 1     # interval update
+        interval = 1     # interval update (detik)
         current = 0
 
         while True:
@@ -33,10 +32,10 @@ async def download_m3u8(url, output_path, progress_callback=None):
             if line == '' and process.poll() is not None:
                 break
 
-            # Simulasi progres
             if progress_callback and os.path.exists(output_path):
                 size = os.path.getsize(output_path)
-                estimated_total = size * (total_time / max((time.time() - start_time), 1))
+                elapsed = max((time.time() - start_time), 1)
+                estimated_total = max(size, size * (total_time / elapsed))
                 await progress_callback(size, estimated_total)
 
             await asyncio.sleep(interval)
@@ -50,11 +49,13 @@ async def download_m3u8(url, output_path, progress_callback=None):
             raise FileNotFoundError(f"File tidak ditemukan: {output_path}")
 
         size = os.path.getsize(output_path)
-        # print(f"[FFMPEG] ✅ Unduhan selesai, ukuran file: {size} byte")
-
         if size < 1024:
             raise Exception("Ukuran file terlalu kecil, kemungkinan file kosong atau gagal.")
 
     except Exception as e:
-        # print(f"[FFMPEG] ❌ Error: {e}")
+        print(f"[FFMPEG] ❌ Error saat mengunduh: {e}")
         raise
+
+    finally:
+        if process and process.poll() is None:
+            process.kill()
