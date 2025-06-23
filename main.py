@@ -25,7 +25,6 @@ async def fallback_handler(client, message: Message):
             await message.reply_text("❌ Link tidak valid. Pastikan itu adalah link `.m3u8`.")
             return
 
-        await message.reply_text("⏳ Sedang mendownload video...")
         output_file = f"{user_id}_m3u8.mp4"
         status_msg = await message.reply_text("📥 Mulai mengunduh...")
 
@@ -35,7 +34,6 @@ async def fallback_handler(client, message: Message):
         else:
             await status_msg.edit("✅ Berhasil! Mengirimkan ke Telegram...")
 
-            # 🧠 Ambil metadata
             duration, thumb = extract_metadata(output_file)
 
             await client.send_video(
@@ -49,7 +47,6 @@ async def fallback_handler(client, message: Message):
 
             if thumb and os.path.exists(thumb):
                 os.remove(thumb)
-
             os.remove(output_file)
 
         user_state.pop(user_id, None)
