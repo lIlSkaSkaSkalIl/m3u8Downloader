@@ -2,9 +2,6 @@ import os
 import subprocess
 
 def get_video_duration(path: str) -> int:
-    """
-    Mendapatkan durasi video dalam detik menggunakan ffprobe.
-    """
     try:
         result = subprocess.run(
             [
@@ -24,9 +21,6 @@ def get_video_duration(path: str) -> int:
         return 0
 
 def get_thumbnail(path: str, thumb_path: str) -> str:
-    """
-    Mengambil thumbnail dari video menggunakan ffmpeg.
-    """
     try:
         subprocess.run(
             [
