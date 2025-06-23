@@ -21,16 +21,31 @@ def eta_str(elapsed, done, total) -> str:
     eta = remaining / speed
     return f"{int(eta)}s"
 
+def progress_bar(done: int, total: int, length: int = 20) -> str:
+    if total == 0:
+        return "[░" * (length - 1) + "] 0%"
+    progress = min(done / total, 1.0)
+    filled_length = int(length * progress)
+    bar = "█" * filled_length + "░" * (length - filled_length)
+    percent = int(progress * 100)
+    return f"[{bar}] {percent}%"
+
 def format_status(phase: str, filename: str, done: int, total: int, elapsed: float) -> str:
     speed = done / elapsed if elapsed > 0 else 0
     ext = os.path.splitext(filename)[1] or "N/A"
     total_hr = human_readable_size(total)
+
     return (
-        f"**{phase}...**\n"
-        f"📄 Nama: `{os.path.basename(filename)}`\n"
-        f"💾 Ukuran: `{human_readable_size(done)} / {total_hr}`\n"
-        f"🚀 Kecepatan: `{human_readable_size(speed)}/s`\n"
-        f"🧩 Ekstensi: `{ext}`\n"
-        f"⏱ Waktu Berlalu: `{int(elapsed)}s`\n"
-        f"⌛ ETA: `{eta_str(elapsed, done, total)}`"
+        f"━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"🔄 **{phase.upper()}**\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"📄 **Nama:** `{os.path.basename(filename)}`\n"
+        f"💾 **Ukuran:** `{human_readable_size(done)} / {total_hr}`\n"
+        f"🚀 **Kecepatan:** `{human_readable_size(speed)}/s`\n"
+        f"🧩 **Ekstensi:** `{ext}`\n"
+        f"⏱ **Waktu Berlalu:** `{int(elapsed)}s`\n"
+        f"⌛ **ETA:** `{eta_str(elapsed, done, total)}`\n"
+        f"📊 **Progres:**\n"
+        f"{progress_bar(done, total)}\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━"
     )
