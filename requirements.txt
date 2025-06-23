@@ -1,3 +1,4 @@
 aiohttp
 pyrogram
 tgcrypto
+m3u8
