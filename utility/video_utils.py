@@ -1,76 +1,85 @@
-import subprocess
 import asyncio
-import time
+import subprocess
 import os
-import json
+import uuid
+import time
 from utility.status_format import format_status
 
-def extract_metadata(path):
-    try:
-        cmd = [
-            "ffprobe", "-v", "quiet", "-print_format", "json",
-            "-show_format", "-show_streams", path
-        ]
-        result = subprocess.run(cmd, capture_output=True, text=True)
-        if result.returncode != 0:
-            return None
-
-        info = json.loads(result.stdout)
-        duration = float(info["format"].get("duration", 0))
-        streams = info.get("streams", [])
-        width = height = None
-        for stream in streams:
-            if stream.get("codec_type") == "video":
-                width = stream.get("width")
-                height = stream.get("height")
-                break
-        return {
-            "duration": int(duration),
-            "width": width,
-            "height": height
-        }
-    except Exception as e:
-        print("[Metadata Error]", e)
-        return None
-
-def build_progress_bar(percent: int, length: int = 25) -> str:
-    filled = int(length * percent / 100)
-    bar = "█" * filled + "░" * (length - filled)
-    return f"[{bar}]"
-
+# === Download M3U8 Video ===
 async def download_m3u8_video(url, output_path, status_msg):
     try:
+        tmp_path = f"{output_path}.tmp"
+        start = time.time()
+
+        # Jalankan streamlink dengan output ke file
         cmd = [
             "streamlink", url, "best",
-            "-o", output_path
+            "-o", tmp_path,
+            "--force"
         ]
+
         process = await asyncio.create_subprocess_exec(
             *cmd,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE
         )
 
-        start_time = time.time()
-        last_update = 0
-
         while True:
-            line = await process.stderr.readline()
-            if not line:
+            if process.stdout.at_eof():
                 break
-            elapsed = time.time() - start_time
 
-            # Estimasi dummy progres berdasarkan waktu (jika tidak ada parsing)
-            if time.time() - last_update > 5:
-                try:
-                    progress_text = format_status("📥 Mengunduh", output_path, 0, 0, elapsed)
-                    await status_msg.edit(progress_text + "\n" + build_progress_bar(50))
-                    last_update = time.time()
-                except:
-                    pass
+            await asyncio.sleep(5)
+            elapsed = time.time() - start
+            try:
+                await status_msg.edit(format_status("📥 Mengunduh", output_path, 0, 0, elapsed))
+            except: pass
 
-        await process.wait()
+        await process.communicate()
+
+        if not os.path.exists(tmp_path):
+            return False
+
+        # Remux agar metadata valid dan thumbnail muncul
+        remux_cmd = [
+            "ffmpeg", "-y", "-i", tmp_path,
+            "-c", "copy", "-movflags", "+faststart",
+            output_path
+        ]
+        subprocess.run(remux_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+        os.remove(tmp_path)
         return os.path.exists(output_path)
 
     except Exception as e:
-        print(f"[ERROR] {e}")
+        print(f"[ERROR download_m3u8_video] {e}")
         return False
+
+# === Ekstrak Metadata: durasi dan thumbnail ===
+def extract_metadata(file_path):
+    try:
+        # Ambil durasi video
+        result = subprocess.run(
+            ["ffprobe", "-v", "error", "-show_entries",
+             "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", file_path],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT
+        )
+        duration = int(float(result.stdout.decode().strip()))
+
+        # Buat thumbnail
+        thumb_path = f"{uuid.uuid4().hex}_thumb.jpg"
+        subprocess.run(
+            ["ffmpeg", "-y", "-ss", "00:00:01", "-i", file_path,
+             "-vframes", "1", "-q:v", "2", thumb_path],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
+
+        if os.path.exists(thumb_path):
+            return duration, thumb_path
+        else:
+            return duration, None
+
+    except Exception as e:
+        print(f"[ERROR extract_metadata] {e}")
+        return 0, None
