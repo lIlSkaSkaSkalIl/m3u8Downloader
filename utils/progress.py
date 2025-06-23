@@ -1,6 +1,7 @@
 import time
 from pyrogram.errors import FloodWait
 from utility.status_format import format_status
+from math import floor
 
 def make_progress_callback(client, status_msg, label, output_path, start_time, flood_lock, last_update_ref):
     async def progress_callback(current, total):
@@ -8,7 +9,7 @@ def make_progress_callback(client, status_msg, label, output_path, start_time, f
         if now - last_update_ref[0] < 10 or flood_lock[0]:
             return
         last_update_ref[0] = now
-        elapsed = now - start_time
+        elapsed = floor(now - start_time)
         text = format_status(label, output_path, current, total, elapsed)[:4000]
 
         try:
@@ -17,6 +18,7 @@ def make_progress_callback(client, status_msg, label, output_path, start_time, f
                 message_id=status_msg.id,
                 text=text
             )
+            print(f"[PROGRESS] ✅ Status diperbarui ({label}): {current}/{total}")
         except FloodWait as e:
             print(f"[PROGRESS] 🚫 FloodWait {e.value}s, menonaktifkan update.")
             flood_lock[0] = True
