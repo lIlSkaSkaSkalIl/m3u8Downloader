@@ -1,10 +1,10 @@
-from pyrogram import filters
-from pyrogram.types import Message
-from pyrogram.handlers import MessageHandler  # Tambahkan ini
+from aiogram import types
+from aiogram.dispatcher import Dispatcher
 
-# Fungsi yang menangani perintah /start
-async def start(_, message: Message):
-    await message.reply_text("👋 Halo! Kirimkan link m3u8 dan saya akan unduh videonya untukmu.")
+# Fungsi untuk menangani perintah /start
+async def start_command(message: types.Message):
+    await message.reply("👋 Halo! Kirimkan link m3u8 dan saya akan unduh videonya untukmu.")
 
-# Handler yang siap ditambahkan ke app
-start_handler = MessageHandler(start, filters.command("start"))
+# Fungsi untuk registrasi handler
+def register_commands(dp: Dispatcher):
+    dp.register_message_handler(start_command, commands=["start"])
