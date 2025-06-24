@@ -12,7 +12,7 @@ from utils.status import update_status
 from handlers.upload_handler import upload_video
 
 
-# Fungsi utama yang menangani proses download (bisa dipanggil ulang dari callback)
+# Fungsi utama penanganan M3U8
 async def handle_m3u8(client, message: Message, url: str = None, previewed: bool = False):
     if url is None:
         url = message.text.strip()
@@ -25,10 +25,10 @@ async def handle_m3u8(client, message: Message, url: str = None, previewed: bool
             await status_msg.edit_text("❌ Tidak bisa mengambil info video. Langsung mulai unduhan...")
         else:
             caption = (
-                "🔎 *Preview Metadata:*\n"
-                f"- Resolusi: `{info['width']}x{info['height']}`\n"
-                f"- Durasi: `{info['duration']}s`\n"
-                f"- Codec: `{info['codec']}`\n\n"
+                "🔎 <b>Preview Metadata:</b>\n"
+                f"▫️ Resolusi: <code>{info['width']}x{info['height']}</code>\n"
+                f"▫️ Durasi: <code>{info['duration']} detik</code>\n"
+                f"▫️ Codec: <code>{info['codec']}</code>\n\n"
                 "Ingin melanjutkan unduhan?"
             )
 
@@ -37,10 +37,9 @@ async def handle_m3u8(client, message: Message, url: str = None, previewed: bool
                 [InlineKeyboardButton("❌ Batal", callback_data="cancel")]
             ])
 
-            await status_msg.edit_text(caption, reply_markup=buttons, parse_mode="Markdown")
-            return  # Tunggu aksi dari tombol
+            await status_msg.edit_text(caption, reply_markup=buttons, parse_mode="html")
+            return
 
-    # Lanjutkan proses download
     status_msg = await message.reply_text("🔍 Memproses link...")
 
     filename = f"{int(time.time())}.mp4"
@@ -65,10 +64,9 @@ async def handle_m3u8(client, message: Message, url: str = None, previewed: bool
         flood_lock[0] = True
         await asyncio.sleep(1)  # Tunggu agar status edit sinkron
     except Exception as e:
-        await status_msg.edit_text(f"❌ Gagal mengunduh: `{e}`")
+        await status_msg.edit_text(f"❌ Gagal mengunduh: <code>{e}</code>", parse_mode="html")
         return
 
-    # Lanjut proses metadata & upload
     await update_status(client, status_msg, "🔧 Memproses video...")
     await update_status(client, status_msg, "⏱️ Mengambil durasi video...")
     duration = get_video_duration(output_path)
@@ -85,8 +83,9 @@ async def handle_m3u8(client, message: Message, url: str = None, previewed: bool
 async def m3u8_text_handler(client, message: Message):
     await handle_m3u8(client, message, previewed=False)
 
-# Ini yang didaftarkan ke app di main.py
+
+# Handler yang didaftarkan di main.py
 m3u8_handler = MessageHandler(
     m3u8_text_handler,
     filters.text & ~filters.command("start")
-)
+    )
