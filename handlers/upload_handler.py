@@ -1,30 +1,41 @@
 import os
 from aiogram import types
 from aiogram.types import InputFile
-from utils.video_meta import get_video_duration, get_thumbnail  # ✅ import fungsi meta
+from utils.video_meta import get_video_duration, get_thumbnail
+
+def is_valid_thumbnail(path: str) -> bool:
+    """Validasi thumbnail: ada, ukuran masuk akal, dan berekstensi .jpg"""
+    return (
+        path
+        and os.path.exists(path)
+        and os.path.getsize(path) > 10 * 1024  # minimal 10 KB
+        and path.lower().endswith(".jpg")
+    )
 
 async def upload_video(message: types.Message, output_path, filename, duration=None, thumb=None):
     try:
-        # 🎞️ Hitung durasi jika tidak diberikan
+        # 🎞️ Hitung durasi jika belum ada
         if duration is None:
             duration = get_video_duration(output_path)
 
-        # 📸 Ambil thumbnail jika belum tersedia
+        # 📸 Buat thumbnail jika belum ada
         if thumb is None:
             thumb_path = f"{output_path}.jpg"
             thumb = get_thumbnail(output_path, thumb_path)
 
-        video = InputFile(output_path)
+        # ✅ Validasi thumbnail
+        if not is_valid_thumbnail(thumb):
+            thumb = None
 
         await message.answer_video(
-            video=video,
+            video=InputFile(output_path),
             duration=duration,
-            thumb=thumb if thumb else None,
+            thumb=InputFile(thumb) if thumb else None,
             caption=f"✅ Selesai!\nNama file: `{filename}`",
             parse_mode="Markdown"
         )
 
-        # Hapus thumbnail setelah upload (jika ada)
+        # 🧹 Bersihkan thumbnail setelah kirim
         if thumb and os.path.exists(thumb):
             os.remove(thumb)
 
