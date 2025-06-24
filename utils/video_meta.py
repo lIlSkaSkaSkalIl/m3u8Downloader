@@ -29,7 +29,7 @@ def get_thumbnail(path: str, thumb_path: str) -> str:
             [
                 "ffmpeg", "-y", "-i", path,
                 "-ss", "00:00:01.000", "-vframes", "1",
-                "-s", "320x180",  # Ukuran standar 16:9
+                "-s", "480x270",  # Ukuran besar 16:9
                 thumb_path
             ],
             stdout=subprocess.PIPE,
