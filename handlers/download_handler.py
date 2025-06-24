@@ -8,14 +8,13 @@ from pyrogram.handlers import MessageHandler
 from utility.video_utils import download_m3u8
 from utils.progress import make_progress_callback
 from utils.video_meta import get_video_duration, get_thumbnail
-from utils.status import update_status
 from handlers.upload_handler import upload_video
 
 async def handle_m3u8(client, message: Message):
     print("[BOT] 🔗 Menerima link M3U8:", message.text)
 
     url = message.text.strip()
-    status_msg = await message.reply_text("🔍 Memproses link...")
+    status_msg = await message.reply_text("📥 Mengunduh...")
 
     filename = f"{int(time.time())}.mp4"
     output_path = os.path.join("downloads", filename)
@@ -36,37 +35,24 @@ async def handle_m3u8(client, message: Message):
 
     try:
         await download_m3u8(url, output_path, progress_callback)
-
-        # ⛔ Hentikan progres lebih lanjut
         flood_lock[0] = True
-
-        # 🛠️ Paksa update status untuk mengganti status "Mengunduh"
-        await update_status(client, status_msg, "🔧 Memproses video...")
-
-        # ⏱️ Delay kecil untuk memberi waktu Telegram memproses update sebelumnya
         await asyncio.sleep(1)
-
         print("[BOT] ✅ Unduhan selesai:", output_path)
-
     except Exception as e:
         await status_msg.edit_text(f"❌ Gagal mengunduh: `{e}`")
         print("[BOT] ❌ Gagal mengunduh:", e)
         return
 
-    await update_status(client, status_msg, "⏱️ Mengambil durasi video...")
+    # Ambil metadata untuk keperluan upload
     duration = get_video_duration(output_path)
-
-    await update_status(client, status_msg, "📷 Mengambil thumbnail video...")
     thumb_path = os.path.splitext(output_path)[0] + "_thumb.jpg"
     thumb = get_thumbnail(output_path, thumb_path)
 
-    await update_status(client, status_msg, "📤 Mengunggah ke Telegram...")
-    print("[BOT] 📤 Siap upload:", output_path)
-
+    # Langsung lanjutkan ke upload (progres upload akan tampil otomatis)
     await upload_video(client, message, status_msg, output_path, filename, flood_lock, duration, thumb)
 
-# ✅ Ini handler utama untuk semua teks selain /start
+# MessageHandler utama (selain /start)
 m3u8_handler = MessageHandler(
     handle_m3u8,
     filters.text & ~filters.command("start")
-    )
+)
