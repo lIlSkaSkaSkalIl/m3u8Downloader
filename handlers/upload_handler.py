@@ -23,9 +23,14 @@ async def upload_video(message: types.Message, output_path, filename, duration=N
             thumb_path = f"{output_path}.jpg"
             thumb = get_thumbnail(output_path, thumb_path)
 
-        # ✅ Validasi thumbnail
+        # ✅ Validasi thumbnail dan kirim log ke Telegram
         if not is_valid_thumbnail(thumb):
+            await message.answer("⚠️ Thumbnail tidak valid atau gagal dibuat.")
             thumb = None
+        else:
+            await message.answer(f"🖼️ Thumbnail berhasil dibuat: `{os.path.basename(thumb)}`", parse_mode="Markdown")
+            # Kirim thumbnail sebagai foto (untuk debug visual)
+            await message.answer_photo(InputFile(thumb), caption="📷 Ini thumbnail-nya")
 
         await message.answer_video(
             video=InputFile(output_path),
