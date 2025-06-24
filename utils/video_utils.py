@@ -36,6 +36,9 @@ def download_video(m3u8_url, resolution='720p', output_path='downloads/output.mp
     Unduh video dari M3U8 ke file mp4 menggunakan ffmpeg.
     """
     try:
+        # ✅ Pastikan folder tujuan ada
+        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+
         qualities = get_available_qualities(m3u8_url)
         selected_url = qualities.get(resolution, m3u8_url)
 
