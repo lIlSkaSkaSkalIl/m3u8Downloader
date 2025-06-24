@@ -3,7 +3,7 @@ import os
 import json
 
 def get_video_duration(path: str) -> int:
-    """Mengembalikan durasi video dalam detik dari file lokal menggunakan ffprobe."""
+    """Mengembalikan durasi video (detik) dari file lokal menggunakan ffprobe."""
     try:
         result = subprocess.run(
             [
@@ -23,7 +23,7 @@ def get_video_duration(path: str) -> int:
         return 0
 
 def get_thumbnail(path: str, thumb_path: str) -> str:
-    """Mengambil thumbnail dari detik pertama video dan menyimpannya di thumb_path."""
+    """Membuat thumbnail JPG dari detik ke-1 video dan menyimpannya."""
     try:
         subprocess.run(
             [
@@ -39,10 +39,10 @@ def get_thumbnail(path: str, thumb_path: str) -> str:
         print(f"❌ Gagal mengambil thumbnail: {e}")
         return None
 
-def get_video_info(url: str) -> dict:
+def get_video_info(path: str) -> dict:
     """
-    Mengambil informasi video seperti durasi, resolusi, dan codec
-    dari file lokal atau URL menggunakan ffprobe.
+    Mengambil informasi detail video: durasi, resolusi, codec
+    Gunakan untuk debug atau log internal.
     """
     try:
         result = subprocess.run(
@@ -51,7 +51,7 @@ def get_video_info(url: str) -> dict:
                 "-select_streams", "v:0",
                 "-show_entries", "stream=width,height,duration,codec_name",
                 "-of", "json",
-                url
+                path
             ],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
