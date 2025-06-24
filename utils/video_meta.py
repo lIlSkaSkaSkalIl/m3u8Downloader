@@ -23,12 +23,13 @@ def get_video_duration(path: str) -> int:
         return 0
 
 def get_thumbnail(path: str, thumb_path: str) -> str:
-    """Membuat thumbnail JPG dari detik ke-1 video dan menyimpannya."""
+    """Membuat thumbnail JPG ukuran 320x180 dari detik ke-1 video."""
     try:
         subprocess.run(
             [
                 "ffmpeg", "-y", "-i", path,
                 "-ss", "00:00:01.000", "-vframes", "1",
+                "-s", "320x180",  # Ukuran 16:9 standar Telegram
                 thumb_path
             ],
             stdout=subprocess.DEVNULL,
@@ -40,10 +41,7 @@ def get_thumbnail(path: str, thumb_path: str) -> str:
         return None
 
 def get_video_info(path: str) -> dict:
-    """
-    Mengambil informasi detail video: durasi, resolusi, codec
-    Gunakan untuk debug atau log internal.
-    """
+    """Mengambil informasi detail video: durasi, resolusi, codec."""
     try:
         result = subprocess.run(
             [
