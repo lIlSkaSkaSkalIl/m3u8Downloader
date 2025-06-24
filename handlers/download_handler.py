@@ -3,7 +3,7 @@ import uuid
 from aiogram import types
 from aiogram.dispatcher import Dispatcher
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
-from utility.video_utils import get_available_qualities, download_video
+from utils.video_utils import get_available_qualities, download_video
 from handlers.upload_handler import upload_video
 
 # Simpan URL sementara berdasarkan user
@@ -13,28 +13,25 @@ async def handle_m3u8_link(message: types.Message):
     url = message.text.strip()
     user_id = message.from_user.id
 
-    await message.answer("🔍 Mengecek resolusi yang tersedia...")
+    # 🔍 Status pesan awal
+    status_msg = await message.answer("🔍 Mengecek resolusi yang tersedia...")
 
     qualities = get_available_qualities(url)
 
-    # Jika tidak ada daftar resolusi (bukan master playlist)
+    # 🚮 Hapus status pesan
+    await status_msg.delete()
+
     if not qualities:
-        await message.answer("⚠️ Tidak ditemukan daftar resolusi.\nMengunduh langsung dari URL...")
-
-        filename = f"{uuid.uuid4().hex}.mp4"
-        output_path = os.path.join("downloads", filename)
-
-        video_path = download_video(url, output_path=output_path)
-        if video_path:
-            await upload_video(message, video_path, filename, duration=None, thumb=None)
-            os.remove(video_path)
-        else:
-            await message.answer("❌ Gagal mengunduh video.")
+        # Jika tidak ditemukan resolusi, tetap gunakan URL asli
+        await message.answer("⚠️ Tidak ditemukan resolusi untuk URL tersebut. Menggunakan URL asli.")
+        user_m3u8_links[user_id] = url
+        await process_video_download(message, url)
         return
 
-    # Jika ada resolusi, lanjut tampilkan tombol
+    # Simpan url ke memori user
     user_m3u8_links[user_id] = url
 
+    # Buat tombol untuk pilih resolusi
     keyboard = InlineKeyboardMarkup(row_width=3)
     buttons = [
         InlineKeyboardButton(text=res, callback_data=f"res_{res}")
@@ -53,17 +50,39 @@ async def handle_resolution_callback(callback_query: CallbackQuery):
         await callback_query.message.answer("❌ Link tidak ditemukan.")
         return
 
-    await callback_query.message.answer(f"📥 Mengunduh video dengan resolusi {resolution}...")
+    # ⏳ Status sementara
+    status_msg = await callback_query.message.answer(f"📥 Mengunduh video dengan resolusi {resolution}...")
 
+    # Path file sementara
     filename = f"{uuid.uuid4().hex}.mp4"
     output_path = os.path.join("downloads", filename)
 
     video_path = download_video(url, resolution=resolution, output_path=output_path)
+
+    # 🚮 Hapus status loading
+    await status_msg.delete()
+
     if video_path:
-        await upload_video(callback_query.message, video_path, filename, duration=None, thumb=None)
+        await upload_video(callback_query.message, output_path, filename)
         os.remove(video_path)
     else:
         await callback_query.message.answer("❌ Gagal mengunduh video.")
+
+# 🪄 Fallback jika tidak ditemukan resolusi (langsung unduh default)
+async def process_video_download(message: types.Message, url: str):
+    status_msg = await message.answer("📥 Mengunduh video dari URL...")
+
+    filename = f"{uuid.uuid4().hex}.mp4"
+    output_path = os.path.join("downloads", filename)
+
+    video_path = download_video(url, output_path=output_path)
+    await status_msg.delete()
+
+    if video_path:
+        await upload_video(message, output_path, filename)
+        os.remove(video_path)
+    else:
+        await message.answer("❌ Gagal mengunduh video.")
 
 def register_download(dp: Dispatcher):
     dp.register_message_handler(handle_m3u8_link, lambda msg: msg.text and msg.text.endswith(".m3u8"))
