@@ -20,10 +20,14 @@ async def handle_m3u8(client, message: Message):
     try:
         await download_m3u8(url, output_path)
         print("[BOT] ✅ Unduhan selesai:", output_path)
+        await message.reply_text("✅ Unduhan selesai.")  # Tampilkan ke Telegram
     except Exception as e:
         await message.reply_text(f"❌ Gagal mengunduh: `{e}`")
         print("[BOT] ❌ Gagal mengunduh:", e)
         return
+
+    await message.reply_text("📤 Memulai upload...")  # Upload feedback
+    print("[BOT] 📤 Siap upload:", output_path)
 
     duration = get_video_duration(output_path)
     thumb_path = os.path.splitext(output_path)[0] + "_thumb.jpg"
@@ -34,4 +38,4 @@ async def handle_m3u8(client, message: Message):
 m3u8_handler = MessageHandler(
     handle_m3u8,
     filters.text & ~filters.command("start")
-)
+    )
