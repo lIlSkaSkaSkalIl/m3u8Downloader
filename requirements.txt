@@ -1,4 +1,3 @@
-aiohttp
-pyrogram
-tgcrypto
-m3u8
+aiogram
+requests
+ffmpeg-python
