@@ -1,5 +1,5 @@
 from aiogram import Bot, Dispatcher, executor
-from config import API_TOKEN
+from config import BOT_TOKEN as API_TOKEN  # Gunakan BOT_TOKEN dari config.py
 from handlers.command_handler import register_commands
 from handlers.download_handler import register_download
 from handlers.upload_handler import register_upload
