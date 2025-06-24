@@ -13,13 +13,12 @@ from utils.status import update_status
 from handlers.upload_handler import upload_video
 
 
-# Fungsi escape karakter untuk MarkdownV2
+# Fungsi escape untuk MarkdownV2
 def escape_md(text):
     escape_chars = r"_*[]()~`>#+-=|{}.!"
     return re.sub(rf"([{re.escape(escape_chars)}])", r"\\\1", str(text))
 
 
-# Fungsi utama penanganan M3U8
 async def handle_m3u8(client, message: Message, url: str = None, previewed: bool = False):
     if url is None:
         url = message.text.strip()
@@ -76,7 +75,7 @@ async def handle_m3u8(client, message: Message, url: str = None, previewed: bool
         await asyncio.sleep(1)
     except Exception as e:
         await status_msg.edit_text(
-            f"❌ Gagal mengunduh:\\n<code>{escape_md(str(e))}</code>",
+            f"❌ Gagal mengunduh:\n`{escape_md(str(e))}`",
             parse_mode="MarkdownV2"
         )
         return
@@ -93,12 +92,12 @@ async def handle_m3u8(client, message: Message, url: str = None, previewed: bool
     await upload_video(client, message, status_msg, output_path, filename, flood_lock, duration, thumb)
 
 
-# Handler pesan teks biasa (selain /start)
+# Handler pesan teks
 async def m3u8_text_handler(client, message: Message):
     await handle_m3u8(client, message, previewed=False)
 
 
-# Handler yang didaftarkan ke `app.add_handler()` di main.py
+# Handler final untuk didaftarkan di main.py
 m3u8_handler = MessageHandler(
     m3u8_text_handler,
     filters.text & ~filters.command("start")
