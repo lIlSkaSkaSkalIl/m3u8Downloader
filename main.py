@@ -1,18 +1,17 @@
-import os
-from pyrogram import Client
-from config import API_ID, API_HASH, BOT_TOKEN
+from aiogram import Bot, Dispatcher, executor
+from config import API_TOKEN
+from handlers.command_handler import register_commands
+from handlers.download_handler import register_download
+from handlers.upload_handler import register_upload
 
-from handlers.command_handler import start_handler
-from handlers.download_handler import m3u8_handler
+# Inisialisasi bot dan dispatcher
+bot = Bot(token=API_TOKEN)
+dp = Dispatcher(bot)
 
-DOWNLOAD_DIR = "downloads"
-os.makedirs(DOWNLOAD_DIR, exist_ok=True)
+# Registrasi handler
+register_commands(dp)
+register_download(dp)
+register_upload(dp)
 
-app = Client("m3u8_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
-
-app.add_handler(start_handler)
-app.add_handler(m3u8_handler)
-
-if __name__ == "__main__":
-    print("🚀 Bot dimulai...")
-    app.run()
+if __name__ == '__main__':
+    executor.start_polling(dp, skip_updates=True)
