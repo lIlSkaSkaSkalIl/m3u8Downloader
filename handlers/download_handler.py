@@ -36,15 +36,23 @@ async def handle_m3u8(client, message: Message):
 
     try:
         await download_m3u8(url, output_path, progress_callback)
+
+        # ⛔ Hentikan progres lebih lanjut
         flood_lock[0] = True
+
+        # 🛠️ Paksa update status untuk mengganti status "Mengunduh"
+        await update_status(client, status_msg, "🔧 Memproses video...")
+
+        # ⏱️ Delay kecil untuk memberi waktu Telegram memproses update sebelumnya
         await asyncio.sleep(1)
+
         print("[BOT] ✅ Unduhan selesai:", output_path)
+
     except Exception as e:
         await status_msg.edit_text(f"❌ Gagal mengunduh: `{e}`")
         print("[BOT] ❌ Gagal mengunduh:", e)
         return
 
-    await update_status(client, status_msg, "🔧 Memproses video...")
     await update_status(client, status_msg, "⏱️ Mengambil durasi video...")
     duration = get_video_duration(output_path)
 
@@ -57,8 +65,8 @@ async def handle_m3u8(client, message: Message):
 
     await upload_video(client, message, status_msg, output_path, filename, flood_lock, duration, thumb)
 
-# ✅ Kunci utama: ini harus berupa MessageHandler!
+# ✅ Ini handler utama untuk semua teks selain /start
 m3u8_handler = MessageHandler(
     handle_m3u8,
     filters.text & ~filters.command("start")
-)
+    )
