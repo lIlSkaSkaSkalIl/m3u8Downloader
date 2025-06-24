@@ -49,8 +49,11 @@ async def handle_m3u8(client, message: Message):
     thumb = get_thumbnail(output_path, thumb_path)
 
     # Langsung lanjutkan ke upload (progres upload akan tampil otomatis)
-    await upload_video(client, message, status_msg, output_path, filename, _, duration, thumb)
+    # ... (kode sebelumnya tetap)
 
+    # Upload video (ubah argumen flood_lock jadi `_`)
+    await upload_video(client, message, status_msg, output_path, filename, _, duration, thumb)
+    
 # MessageHandler utama (selain /start)
 m3u8_handler = MessageHandler(
     handle_m3u8,
