@@ -8,7 +8,7 @@ def is_valid_thumbnail(path: str) -> bool:
     return (
         path
         and os.path.exists(path)
-        and os.path.getsize(path) > 10 * 1024  # minimal 10 KB
+        and os.path.getsize(path) > 5 * 1024  # minimal 5 KB
         and path.lower().endswith(".jpg")
     )
 
