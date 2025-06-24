@@ -1,41 +1,51 @@
-import subprocess
 import os
-import asyncio
+import ffmpeg
+import requests
+import re
 
-async def download_m3u8(url, output_path, progress_callback=None):
-    print(f"[FFMPEG] 🚀 Memulai proses download dari URL:\n{url}")
+def get_available_qualities(m3u8_url):
+    """
+    Mengambil semua kualitas (resolusi) dari master playlist M3U8.
+    Mengembalikan dictionary seperti: {'1080p': 'url', '720p': 'url'}
+    """
+    response = requests.get(m3u8_url)
+    if response.status_code != 200:
+        return {}
 
-    try:
-        process = subprocess.Popen(
-            [
-                "ffmpeg",
-                "-y",
-                "-i", url,
-                "-c", "copy",
-                output_path
-            ],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            universal_newlines=True
+    pattern = r'#EXT-X-STREAM-INF:.*RESOLUTION=(\d+x\d+).*?\n(.*)'
+    matches = re.findall(pattern, response.text)
+
+    qualities = {}
+    for res, stream_url in matches:
+        resolution = res.split('x')[1] + 'p'  # contoh: 1920x1080 → '1080p'
+        # Lengkapi URL jika relatif
+        absolute_url = (
+            stream_url if stream_url.startswith("http")
+            else m3u8_url.rsplit("/", 1)[0] + "/" + stream_url
         )
+        qualities[resolution] = absolute_url
 
-        while True:
-            line = process.stdout.readline()
-            if line == '' and process.poll() is not None:
-                break
-            await asyncio.sleep(0.5)
+    return qualities
 
-        process.wait()
+def download_video(m3u8_url, resolution='720p', output_path='downloads/output.mp4'):
+    """
+    Mengunduh video dari URL M3U8 dengan resolusi tertentu.
+    """
+    try:
+        qualities = get_available_qualities(m3u8_url)
+        if resolution in qualities:
+            selected_url = qualities[resolution]
+        else:
+            print(f"Resolusi {resolution} tidak ditemukan. Menggunakan URL asli.")
+            selected_url = m3u8_url
 
-        if process.returncode != 0:
-            raise Exception(f"ffmpeg gagal dengan kode keluar {process.returncode}")
-
-        if not os.path.exists(output_path):
-            raise FileNotFoundError("File tidak ditemukan setelah unduhan.")
-
-        size = os.path.getsize(output_path)
-        if size < 1024:
-            raise Exception("Ukuran file terlalu kecil, kemungkinan gagal.")
-
+        (
+            ffmpeg
+            .input(selected_url)
+            .output(output_path, codec='copy')
+            .run(overwrite_output=True)
+        )
+        return output_path if os.path.exists(output_path) else None
     except Exception as e:
-        raise
+        print("Error downloading video:", e)
+        return None
