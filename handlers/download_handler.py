@@ -11,7 +11,9 @@ from utils.video_meta import get_video_duration, get_thumbnail, get_video_info
 from utils.status import update_status
 from handlers.upload_handler import upload_video
 
-async def handle_m3u8(client, message: Message, url: str = None, previewed=False):
+
+# Fungsi utama yang menangani proses download (bisa dipanggil ulang dari callback)
+async def handle_m3u8(client, message: Message, url: str = None, previewed: bool = False):
     if url is None:
         url = message.text.strip()
 
@@ -36,8 +38,9 @@ async def handle_m3u8(client, message: Message, url: str = None, previewed=False
             ])
 
             await status_msg.edit_text(caption, reply_markup=buttons, parse_mode="Markdown")
-            return
+            return  # Tunggu aksi dari tombol
 
+    # Lanjutkan proses download
     status_msg = await message.reply_text("🔍 Memproses link...")
 
     filename = f"{int(time.time())}.mp4"
@@ -60,11 +63,12 @@ async def handle_m3u8(client, message: Message, url: str = None, previewed=False
     try:
         await download_m3u8(url, output_path, progress_callback)
         flood_lock[0] = True
-        await asyncio.sleep(1)
+        await asyncio.sleep(1)  # Tunggu agar status edit sinkron
     except Exception as e:
         await status_msg.edit_text(f"❌ Gagal mengunduh: `{e}`")
         return
 
+    # Lanjut proses metadata & upload
     await update_status(client, status_msg, "🔧 Memproses video...")
     await update_status(client, status_msg, "⏱️ Mengambil durasi video...")
     duration = get_video_duration(output_path)
@@ -76,7 +80,13 @@ async def handle_m3u8(client, message: Message, url: str = None, previewed=False
     await update_status(client, status_msg, "📤 Mengunggah ke Telegram...")
     await upload_video(client, message, status_msg, output_path, filename, flood_lock, duration, thumb)
 
+
+# Handler pesan teks biasa (selain /start)
+async def m3u8_text_handler(client, message: Message):
+    await handle_m3u8(client, message, previewed=False)
+
+# Ini yang didaftarkan ke app di main.py
 m3u8_handler = MessageHandler(
-    lambda client, message: handle_m3u8(client, message, previewed=False),
+    m3u8_text_handler,
     filters.text & ~filters.command("start")
-    )
+)
