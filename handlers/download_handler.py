@@ -1,6 +1,7 @@
 import os
 import time
 import asyncio
+import re
 from pyrogram import filters
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 from pyrogram.handlers import MessageHandler
@@ -10,6 +11,12 @@ from utils.progress import make_progress_callback
 from utils.video_meta import get_video_duration, get_thumbnail, get_video_info
 from utils.status import update_status
 from handlers.upload_handler import upload_video
+
+
+# Fungsi escape karakter untuk MarkdownV2
+def escape_md(text):
+    escape_chars = r"_*[]()~`>#+-=|{}.!"
+    return re.sub(rf"([{re.escape(escape_chars)}])", r"\\\1", str(text))
 
 
 # Fungsi utama penanganan M3U8
@@ -25,10 +32,10 @@ async def handle_m3u8(client, message: Message, url: str = None, previewed: bool
             await status_msg.edit_text("❌ Tidak bisa mengambil info video. Langsung mulai unduhan...")
         else:
             caption = (
-                "🔎 <b>Preview Metadata:</b>\n"
-                f"▫️ Resolusi: <code>{info['width']}x{info['height']}</code>\n"
-                f"▫️ Durasi: <code>{info['duration']} detik</code>\n"
-                f"▫️ Codec: <code>{info['codec']}</code>\n\n"
+                "🔎 *Preview Metadata:*\n"
+                f"▫️ Resolusi: `{escape_md(info['width'])}x{escape_md(info['height'])}`\n"
+                f"▫️ Durasi: `{escape_md(info['duration'])} detik`\n"
+                f"▫️ Codec: `{escape_md(info['codec'])}`\n\n"
                 "Ingin melanjutkan unduhan?"
             )
 
@@ -37,7 +44,11 @@ async def handle_m3u8(client, message: Message, url: str = None, previewed: bool
                 [InlineKeyboardButton("❌ Batal", callback_data="cancel")]
             ])
 
-            await status_msg.edit_text(caption, reply_markup=buttons, parse_mode="html")
+            await status_msg.edit_text(
+                escape_md(caption),
+                reply_markup=buttons,
+                parse_mode="MarkdownV2"
+            )
             return
 
     status_msg = await message.reply_text("🔍 Memproses link...")
@@ -62,9 +73,12 @@ async def handle_m3u8(client, message: Message, url: str = None, previewed: bool
     try:
         await download_m3u8(url, output_path, progress_callback)
         flood_lock[0] = True
-        await asyncio.sleep(1)  # Tunggu agar status edit sinkron
+        await asyncio.sleep(1)
     except Exception as e:
-        await status_msg.edit_text(f"❌ Gagal mengunduh: <code>{e}</code>", parse_mode="html")
+        await status_msg.edit_text(
+            f"❌ Gagal mengunduh:\\n<code>{escape_md(str(e))}</code>",
+            parse_mode="MarkdownV2"
+        )
         return
 
     await update_status(client, status_msg, "🔧 Memproses video...")
@@ -84,8 +98,8 @@ async def m3u8_text_handler(client, message: Message):
     await handle_m3u8(client, message, previewed=False)
 
 
-# Handler yang didaftarkan di main.py
+# Handler yang didaftarkan ke `app.add_handler()` di main.py
 m3u8_handler = MessageHandler(
     m3u8_text_handler,
     filters.text & ~filters.command("start")
-    )
+            )
