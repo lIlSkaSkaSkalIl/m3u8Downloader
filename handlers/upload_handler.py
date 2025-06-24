@@ -1,6 +1,5 @@
 import os
 import time
-from pyrogram.errors import FloodWait
 from utility.status_format import format_status
 from utils.progress import make_progress_callback
 
@@ -8,6 +7,7 @@ async def upload_video(client, message, status_msg, output_path, filename, flood
     upload_start = time.time()
     last_ul_update = [0]
 
+    # Buat callback progres untuk upload
     progress_callback = make_progress_callback(
         client=client,
         status_msg=status_msg,
@@ -28,13 +28,9 @@ async def upload_video(client, message, status_msg, output_path, filename, flood
             progress=progress_callback
         )
         await status_msg.delete()
-        print(f"✅ Video berhasil diunggah: {filename}")
 
         if thumb and os.path.exists(thumb):
-            try:
-                os.remove(thumb)
-            except Exception as e:
-                print(f"⚠️ Gagal menghapus thumbnail: {e}")
+            os.remove(thumb)
 
     except Exception as e:
         await status_msg.edit_text(f"❌ Gagal mengunggah: `{e}`")
