@@ -1,11 +1,12 @@
+import os
+import uuid
 from aiogram import types
 from aiogram.dispatcher import Dispatcher
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 from utility.video_utils import get_available_qualities, download_video
-import os
-import uuid
+from handlers.upload_handler import upload_video  # Pastikan ini sudah pakai aiogram
 
-# Simpan URL sementara berdasarkan user
+# Menyimpan URL sementara berdasarkan ID pengguna
 user_m3u8_links = {}
 
 async def handle_m3u8_link(message: types.Message):
@@ -19,10 +20,10 @@ async def handle_m3u8_link(message: types.Message):
         await message.answer("❌ Tidak ditemukan resolusi untuk URL tersebut.")
         return
 
-    # Simpan url ke memory user
+    # Simpan URL ke memori pengguna
     user_m3u8_links[user_id] = url
 
-    # Buat tombol untuk pilih resolusi
+    # Buat tombol untuk memilih resolusi
     keyboard = InlineKeyboardMarkup(row_width=3)
     buttons = [
         InlineKeyboardButton(text=res, callback_data=f"res_{res}")
@@ -49,8 +50,14 @@ async def handle_resolution_callback(callback_query: CallbackQuery):
 
     video_path = download_video(url, resolution=resolution, output_path=output_path)
     if video_path:
-        await callback_query.message.answer_document(open(video_path, 'rb'))
-        os.remove(video_path)  # hapus setelah kirim
+        await upload_video(
+            message=callback_query.message,
+            output_path=video_path,
+            filename=filename,
+            duration=None,
+            thumb=None
+        )
+        os.remove(video_path)
     else:
         await callback_query.message.answer("❌ Gagal mengunduh video.")
 
