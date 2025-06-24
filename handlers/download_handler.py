@@ -1,41 +1,59 @@
+from aiogram import types
+from aiogram.dispatcher import Dispatcher
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
+from utility.video_utils import get_available_qualities, download_video
 import os
-import time
-from pyrogram import filters
-from pyrogram.types import Message
-from pyrogram.handlers import MessageHandler
+import uuid
 
-from utility.video_utils import download_m3u8
-from utils.video_meta import get_video_duration, get_thumbnail
-from handlers.upload_handler import upload_video
+# Simpan URL sementara berdasarkan user
+user_m3u8_links = {}
 
-async def handle_m3u8(client, message: Message):
-    print("[BOT] 🔗 Menerima link M3U8:", message.text)
-
+async def handle_m3u8_link(message: types.Message):
     url = message.text.strip()
-    await message.reply_text("🔍 Memulai proses unduhan...")
+    user_id = message.from_user.id
 
-    filename = f"{int(time.time())}.mp4"
-    output_path = os.path.join("downloads", filename)
+    await message.answer("🔍 Mengecek resolusi yang tersedia...")
 
-    try:
-        await download_m3u8(url, output_path)
-        print("[BOT] ✅ Unduhan selesai:", output_path)
-        await message.reply_text("✅ Unduhan selesai.")  # Tampilkan ke Telegram
-    except Exception as e:
-        await message.reply_text(f"❌ Gagal mengunduh: `{e}`")
-        print("[BOT] ❌ Gagal mengunduh:", e)
+    qualities = get_available_qualities(url)
+    if not qualities:
+        await message.answer("❌ Tidak ditemukan resolusi untuk URL tersebut.")
         return
 
-    await message.reply_text("📤 Memulai upload...")  # Upload feedback
-    print("[BOT] 📤 Siap upload:", output_path)
+    # Simpan url ke memory user
+    user_m3u8_links[user_id] = url
 
-    duration = get_video_duration(output_path)
-    thumb_path = os.path.splitext(output_path)[0] + "_thumb.jpg"
-    thumb = get_thumbnail(output_path, thumb_path)
+    # Buat tombol untuk pilih resolusi
+    keyboard = InlineKeyboardMarkup(row_width=3)
+    buttons = [
+        InlineKeyboardButton(text=res, callback_data=f"res_{res}")
+        for res in sorted(qualities.keys(), reverse=True)
+    ]
+    keyboard.add(*buttons)
 
-    await upload_video(client, message, output_path, filename, duration, thumb)
+    await message.answer("🎞 Pilih resolusi yang ingin kamu unduh:", reply_markup=keyboard)
 
-m3u8_handler = MessageHandler(
-    handle_m3u8,
-    filters.text & ~filters.command("start")
-    )
+async def handle_resolution_callback(callback_query: CallbackQuery):
+    resolution = callback_query.data.split("_")[1]
+    user_id = callback_query.from_user.id
+    url = user_m3u8_links.get(user_id)
+
+    if not url:
+        await callback_query.message.answer("❌ Link tidak ditemukan.")
+        return
+
+    await callback_query.message.answer(f"📥 Mengunduh video dengan resolusi {resolution}...")
+
+    # Buat path file unik
+    filename = f"{uuid.uuid4().hex}.mp4"
+    output_path = os.path.join("downloads", filename)
+
+    video_path = download_video(url, resolution=resolution, output_path=output_path)
+    if video_path:
+        await callback_query.message.answer_document(open(video_path, 'rb'))
+        os.remove(video_path)  # hapus setelah kirim
+    else:
+        await callback_query.message.answer("❌ Gagal mengunduh video.")
+
+def register_download(dp: Dispatcher):
+    dp.register_message_handler(handle_m3u8_link, lambda msg: msg.text and msg.text.endswith(".m3u8"))
+    dp.register_callback_query_handler(handle_resolution_callback, lambda c: c.data.startswith("res_"))
