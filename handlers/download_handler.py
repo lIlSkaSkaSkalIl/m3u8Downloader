@@ -4,9 +4,9 @@ from aiogram import types
 from aiogram.dispatcher import Dispatcher
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 from utility.video_utils import get_available_qualities, download_video
-from handlers.upload_handler import upload_video  # Pastikan ini sudah pakai aiogram
+from handlers.upload_handler import upload_video
 
-# Menyimpan URL sementara berdasarkan ID pengguna
+# Simpan URL sementara berdasarkan user
 user_m3u8_links = {}
 
 async def handle_m3u8_link(message: types.Message):
@@ -16,14 +16,25 @@ async def handle_m3u8_link(message: types.Message):
     await message.answer("🔍 Mengecek resolusi yang tersedia...")
 
     qualities = get_available_qualities(url)
+
+    # Jika tidak ada daftar resolusi (bukan master playlist)
     if not qualities:
-        await message.answer("❌ Tidak ditemukan resolusi untuk URL tersebut.")
+        await message.answer("⚠️ Tidak ditemukan daftar resolusi.\nMengunduh langsung dari URL...")
+
+        filename = f"{uuid.uuid4().hex}.mp4"
+        output_path = os.path.join("downloads", filename)
+
+        video_path = download_video(url, output_path=output_path)
+        if video_path:
+            await upload_video(message, video_path, filename, duration=None, thumb=None)
+            os.remove(video_path)
+        else:
+            await message.answer("❌ Gagal mengunduh video.")
         return
 
-    # Simpan URL ke memori pengguna
+    # Jika ada resolusi, lanjut tampilkan tombol
     user_m3u8_links[user_id] = url
 
-    # Buat tombol untuk memilih resolusi
     keyboard = InlineKeyboardMarkup(row_width=3)
     buttons = [
         InlineKeyboardButton(text=res, callback_data=f"res_{res}")
@@ -44,19 +55,12 @@ async def handle_resolution_callback(callback_query: CallbackQuery):
 
     await callback_query.message.answer(f"📥 Mengunduh video dengan resolusi {resolution}...")
 
-    # Buat path file unik
     filename = f"{uuid.uuid4().hex}.mp4"
     output_path = os.path.join("downloads", filename)
 
     video_path = download_video(url, resolution=resolution, output_path=output_path)
     if video_path:
-        await upload_video(
-            message=callback_query.message,
-            output_path=video_path,
-            filename=filename,
-            duration=None,
-            thumb=None
-        )
+        await upload_video(callback_query.message, video_path, filename, duration=None, thumb=None)
         os.remove(video_path)
     else:
         await callback_query.message.answer("❌ Gagal mengunduh video.")
